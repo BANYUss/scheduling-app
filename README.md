@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scheduling SaaS
 
-## Getting Started
+A self-hosted scheduling platform inspired by Calendly. Hosts set their weekly availability, and guests book a 30-minute slot through a public link — with correct timezone conversion and atomic double-booking protection.
 
-First, run the development server:
+🔗 **Live demo:** [scheduling-app-sand.vercel.app](https://scheduling-app-sand.vercel.app)
+
+![Dashboard screenshot](docs/dashboard.png)
+
+## Why this project
+
+I built this to practice the parts of full-stack development that are usually skipped in tutorials: **time zones, DST, race conditions, and pure-function design that can actually be tested.**
+
+## Features
+
+- Email + password authentication (Auth.js v5, JWT sessions)
+- Host dashboard: set weekly working hours per day
+- Public booking page at `/{username}/{event-slug}`
+- Slot generation respects host's working hours, slot duration, existing bookings, and minimum notice
+- Guest can book from any timezone — times are rendered locally
+- Confirmed bookings prevent double-booking at the database level
+- Host sees upcoming bookings on their dashboard
+
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 16 (App Router, Server Actions) |
+| Language | TypeScript |
+| Database | PostgreSQL on Neon |
+| ORM | Prisma 7 (with `@prisma/adapter-pg`) |
+| Auth | Auth.js v5 (Credentials + JWT, no adapter) |
+| Time | Luxon (DST-safe) |
+| Validation | Zod |
+| Styling | Tailwind CSS |
+| Tests | Vitest |
+| Hosting | Vercel (serverless) |
+
+## Architecture highlights
+
+### Two kinds of time
+Recurring availability is stored as wall-clock minutes-from-midnight (`Int`) in the host's local timezone. Booked slots are stored as UTC `DateTime`. This separation means a host moving from Jakarta to Berlin doesn't have their schedule silently shift.
+
+### DST-safe slot generation
+When projecting a rule like "09:00 every Monday" onto a calendar day, the engine uses Luxon's `.set({ hour, minute })` instead of `midnight + 9*60 minutes`. This correctly handles "spring forward" and "fall back" — verified with unit tests for both EST (Feb) and EDT (Jul) in New York.
+
+### Race-condition-safe booking
+Two guests clicking the same slot at the same time is handled at the database level via `@@unique([userId, startTime])`. Postgres atomically rejects the second insert with error `P2002`, which the booking action translates into a user-facing "slot just taken" message.
+
+### Pure availability engine
+`getAvailableSlots()` is a pure function: it takes rules, existing bookings, the range, and a `now` parameter — no database access inside. All edge cases (booking conflicts, past-slot filtering, DST) are covered by Vitest tests that run in milliseconds.
+
+## Local setup
 
 ```bash
+git clone https://github.com/BANYUss/scheduling-app
+cd scheduling-app
+npm install
+cp .env.example .env
+# fill in DATABASE_URL and AUTH_SECRET in .env
+npx prisma migrate deploy
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App runs at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string. For serverless deployments use Neon's pooled URL (`-pooler` in hostname). |
+| `AUTH_SECRET` | Random 32-byte base64 string. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
+| `AUTH_TRUST_HOST` | Set to `true` when deploying behind a reverse proxy (required on Vercel). |
 
-## Learn More
+## Running tests
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5 tests cover the availability engine: basic slot generation, booking conflicts, past-slot filtering, and DST transitions (winter + summer).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Deployed on Vercel with auto-deploy from `main`. Notes:
+- Add a `postinstall: "prisma generate"` script so the Prisma Client is generated during Vercel's build step.
+- On Vercel, set the three environment variables above (`AUTH_TRUST_HOST=true` is required for Auth.js v5).
+- Use Neon's **pooled** connection URL — direct connections exhaust quickly under serverless load.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Author
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Sahrul Arif Fauzi**  
+GitHub: [@BANYUss](https://github.com/BANYUss)
