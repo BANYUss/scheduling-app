@@ -5,6 +5,14 @@ A self-hosted scheduling platform inspired by Calendly. Hosts set their weekly a
 🔗 **Live demo:** [scheduling-app-sand.vercel.app](https://scheduling-app-sand.vercel.app)
 
 ![Dashboard screenshot](docs/dashboard.png)
+### Landing
+![Landing page](docs/landing.png)
+
+### Host dashboard
+![Host dashboard](docs/dashboard.png)
+
+### Public booking page
+![Public booking page](docs/booking.png)
 
 ## Why this project
 
