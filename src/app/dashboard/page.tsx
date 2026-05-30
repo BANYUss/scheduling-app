@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { AvailabilityForm, type InitialValues } from "./availability-form";
+import { BookingsList } from "./bookings-list";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -12,6 +13,15 @@ export default async function DashboardPage() {
     include: { eventTypes: true, availabilities: true },
   });
   if (!user) redirect("/login");
+
+  const bookings = await prisma.booking.findMany({
+    where: {
+      userId: user.id,
+      startTime: { gte: new Date() },
+    },
+    orderBy: { startTime: "asc" },
+    include: { eventType: { select: { title: true } } },
+  });
 
   const eventType = user.eventTypes[0];
 
@@ -58,12 +68,16 @@ export default async function DashboardPage() {
           Link booking publik:{" "}
           <code className="rounded bg-gray-100 px-2 py-1">
             /{user.username}/{eventType.slug}
-          </code>{" "}
-          (aktif setelah Fase 3)
+          </code>
         </p>
       )}
 
       <AvailabilityForm initial={initial} />
+
+      <section className="mt-10">
+        <h2 className="mb-3 text-xl font-semibold">Booking masuk</h2>
+        <BookingsList bookings={bookings} hostTimezone={user.timezone} />
+      </section>
     </div>
   );
 }
