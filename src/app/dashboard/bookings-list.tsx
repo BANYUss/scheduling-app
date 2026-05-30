@@ -35,17 +35,25 @@ export function BookingsList({
 
   return (
     <ul className="space-y-3">
-      {bookings.map((b) => (
-        <li key={b.id} className="rounded border p-3">
-          <div className="font-semibold">{b.eventType.title}</div>
-          <div className="text-sm">
-            {dateFmt.format(b.startTime)} – {timeFmt.format(b.endTime)}
-          </div>
-          <div className="mt-1 text-sm text-gray-600">
-            {b.guestName} ({b.guestEmail}) · zona tamu: {b.guestTimezone}
-          </div>
-        </li>
-      ))}
+      {bookings.map((b) => {
+        const subject = encodeURIComponent(`Konfirmasi ${b.eventType.title}`);
+        const body = encodeURIComponent(
+          `Halo ${b.guestName},\n\nKonfirmasi meeting kita pada ${dateFmt.format(b.startTime)}.\n\nTerima kasih.`
+        );
+        const mailto = `mailto:${b.guestEmail}?subject=${subject}&body=${body}`;
+
+        return (
+          <li key={b.id} className="rounded border p-3">
+            <div className="font-semibold">{b.eventType.title}</div>
+            <div className="text-sm">
+              {dateFmt.format(b.startTime)} – {timeFmt.format(b.endTime)}
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              {b.guestName} (<a href={mailto} className="text-blue-600 underline">{b.guestEmail}</a>) · zona tamu: {b.guestTimezone}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
